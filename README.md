@@ -1,5 +1,8 @@
 # chartjs-plugin-scrollbar-zoom
 
+[![npm version](https://img.shields.io/npm/v/@odysseyab/chartjs-plugin-scrollbar-zoom)](https://www.npmjs.com/package/@odysseyab/chartjs-plugin-scrollbar-zoom)
+[![build](https://img.shields.io/github/actions/workflow/status/OdysseyAB/chartjs-plugin-scrollbar-zoom/ci.yml?label=build)](https://github.com/OdysseyAB/chartjs-plugin-scrollbar-zoom/actions)
+
 Scrollbar zoom controls for [Chart.js](https://www.chartjs.org/) — draggable handles, pan, and visual scrollbar tracks for both axes.
 
 Unlike `chartjs-plugin-zoom` (which uses pinch/wheel gestures), this plugin renders **visual scrollbar controls** directly on the canvas with draggable handles on each end, matching the UX of AmCharts, Highcharts, and other premium charting libraries.
