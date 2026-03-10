@@ -108,15 +108,10 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-  <script src="../dist/index.js"></script>
+  <script src="../dist/index.global.js"></script>
   <script>
-    // Register plugin globally
-    const ScrollbarZoomPlugin = window['chartjs-plugin-scrollbar-zoom']?.default
-      || window['chartjs-plugin-scrollbar-zoom']?.ScrollbarZoomPlugin;
-
-    if (ScrollbarZoomPlugin) {
-      Chart.register(ScrollbarZoomPlugin);
-    }
+    // Register the plugin globally (IIFE build exposes ScrollbarZoom global)
+    Chart.register(ScrollbarZoom.ScrollbarZoomPlugin);
 
     // --- Sample data generators ---
     function monthLabels(count) {

@@ -16,8 +16,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
-    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "build": "tsup src/index.ts --format cjs,esm,iife --dts --clean --global-name ScrollbarZoom",
+    "dev": "tsup src/index.ts --format cjs,esm,iife --dts --watch --global-name ScrollbarZoom",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
