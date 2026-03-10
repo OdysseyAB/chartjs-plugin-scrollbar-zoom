@@ -4,6 +4,8 @@ Scrollbar zoom controls for [Chart.js](https://www.chartjs.org/) — draggable h
 
 Unlike `chartjs-plugin-zoom` (which uses pinch/wheel gestures), this plugin renders **visual scrollbar controls** directly on the canvas with draggable handles on each end, matching the UX of AmCharts, Highcharts, and other premium charting libraries.
 
+![Demo screenshot](demo/screenshot.png)
+
 ## Features
 
 - **Always-visible scrollbars** with track, thumb, and round grip handles
@@ -216,9 +218,21 @@ declare module 'chart.js' {
 }
 ```
 
+## Testing
+
+The plugin includes a full test suite (25 tests) using [Vitest](https://vitest.dev/) with jsdom. Tests run automatically before every build.
+
+```bash
+npm test          # Run tests once
+npm run test:watch  # Run tests in watch mode
+npm run build     # Tests + build (CJS, ESM, IIFE)
+```
+
 ## Demo
 
 Open `demo/index.html` in a browser after building (`npm run build`) to see live examples with light/dark mode, custom colors, axis configurations, and positioning options.
+
+A live demo is available at [odysseyab.github.io/chartjs-plugin-scrollbar-zoom](https://odysseyab.github.io/chartjs-plugin-scrollbar-zoom/demo/).
 
 ## License
 
