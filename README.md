@@ -1,6 +1,6 @@
 # chartjs-plugin-scrollbar-zoom
 
-AmCharts-style scrollbar zoom controls for [Chart.js](https://www.chartjs.org/) — draggable handles, pan, and visual scrollbar tracks for both axes.
+Scrollbar zoom controls for [Chart.js](https://www.chartjs.org/) — draggable handles, pan, and visual scrollbar tracks for both axes.
 
 Unlike `chartjs-plugin-zoom` (which uses pinch/wheel gestures), this plugin renders **visual scrollbar controls** directly on the canvas with draggable handles on each end, matching the UX of AmCharts, Highcharts, and other premium charting libraries.
 
