@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>chartjs-plugin-scrollbar-zoom — Demo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      padding: 2rem;
+    }
+
+    h1 { font-size: 1.6rem; margin-bottom: 0.25rem; }
+    .subtitle { color: #888; margin-bottom: 2rem; font-size: 0.95rem; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .card.dark {
+      background: #1e1e2e;
+      color: #cdd6f4;
+    }
+    .card h2 {
+      font-size: 1rem;
+      margin-bottom: 1rem;
+      font-weight: 600;
+    }
+    .chart-wrap {
+      position: relative;
+      width: 100%;
+      height: 320px;
+    }
+
+    .controls {
+      margin-top: 1rem;
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .controls label {
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>chartjs-plugin-scrollbar-zoom</h1>
+  <p class="subtitle">
+    AmCharts-style scrollbar zoom for Chart.js — drag handles to zoom, drag thumb to pan, double-click to reset.
+  </p>
+
+  <div class="grid">
+    <!-- Light mode line chart -->
+    <div class="card">
+      <h2>Line Chart — Light Mode (both axes)</h2>
+      <div class="chart-wrap"><canvas id="chart-light"></canvas></div>
+    </div>
+
+    <!-- Dark mode line chart -->
+    <div class="card dark">
+      <h2>Line Chart — Dark Mode (both axes)</h2>
+      <div class="chart-wrap"><canvas id="chart-dark"></canvas></div>
+    </div>
+
+    <!-- X-only scrollbar -->
+    <div class="card">
+      <h2>Bar Chart — X axis only</h2>
+      <div class="chart-wrap"><canvas id="chart-x-only"></canvas></div>
+    </div>
+
+    <!-- Y-only scrollbar -->
+    <div class="card">
+      <h2>Line Chart — Y axis only</h2>
+      <div class="chart-wrap"><canvas id="chart-y-only"></canvas></div>
+    </div>
+
+    <!-- Custom colors -->
+    <div class="card">
+      <h2>Custom Colors</h2>
+      <div class="chart-wrap"><canvas id="chart-custom"></canvas></div>
+    </div>
+
+    <!-- Bottom X scrollbar -->
+    <div class="card">
+      <h2>X Scrollbar on Bottom</h2>
+      <div class="chart-wrap"><canvas id="chart-bottom"></canvas></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="../dist/index.js"></script>
+  <script>
+    // Register plugin globally
+    const ScrollbarZoomPlugin = window['chartjs-plugin-scrollbar-zoom']?.default
+      || window['chartjs-plugin-scrollbar-zoom']?.ScrollbarZoomPlugin;
+
+    if (ScrollbarZoomPlugin) {
+      Chart.register(ScrollbarZoomPlugin);
+    }
+
+    // --- Sample data generators ---
+    function monthLabels(count) {
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const labels = [];
+      for (let i = 0; i < count; i++) {
+        const year = 2023 + Math.floor(i / 12);
+        labels.push(`${months[i % 12]} ${year}`);
+      }
+      return labels;
+    }
+
+    function randomData(count, min, max) {
+      return Array.from({length: count}, () => Math.round(min + Math.random() * (max - min)));
+    }
+
+    const labels24 = monthLabels(24);
+    const series1 = randomData(24, 40, 90);
+    const series2 = randomData(24, 20, 60);
+
+    // --- 1. Light mode (both axes) ---
+    new Chart(document.getElementById('chart-light'), {
+      type: 'line',
+      data: {
+        labels: labels24,
+        datasets: [
+          { label: 'Revenue', data: series1, borderColor: '#3b82f6', backgroundColor: '#3b82f6', pointRadius: 4, fill: false, tension: 0.1 },
+          { label: 'Costs', data: series2, borderColor: '#ef4444', backgroundColor: '#ef4444', pointRadius: 4, fill: false, tension: 0.1 },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: { top: 32, right: 28 } },
+        scales: {
+          x: { offset: true, ticks: { maxRotation: 0, autoSkip: true } },
+          y: { min: 0, max: 100, ticks: { callback: v => v + '%' } },
+        },
+        plugins: {
+          legend: { display: true },
+          scrollbarZoom: {
+            enabled: true,
+            axes: 'both',
+          },
+        },
+      },
+    });
+
+    // --- 2. Dark mode (both axes) ---
+    new Chart(document.getElementById('chart-dark'), {
+      type: 'line',
+      data: {
+        labels: labels24,
+        datasets: [
+          { label: 'Awareness', data: randomData(24, 50, 95), borderColor: '#a78bfa', backgroundColor: '#a78bfa', pointRadius: 4, fill: false },
+          { label: 'Recall', data: randomData(24, 30, 70), borderColor: '#34d399', backgroundColor: '#34d399', pointRadius: 4, fill: false },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: { top: 32, right: 28 } },
+        scales: {
+          x: { offset: true, ticks: { color: '#888', maxRotation: 0, autoSkip: true } },
+          y: { min: 0, max: 100, ticks: { color: '#888', callback: v => v + '%' }, grid: { color: 'rgba(255,255,255,0.06)' } },
+        },
+        plugins: {
+          legend: { labels: { color: '#cdd6f4' } },
+          scrollbarZoom: {
+            enabled: true,
+            axes: 'both',
+            dark: true,
+          },
+        },
+      },
+    });
+
+    // --- 3. X-only (bar chart) ---
+    new Chart(document.getElementById('chart-x-only'), {
+      type: 'bar',
+      data: {
+        labels: labels24,
+        datasets: [
+          { label: 'Sales', data: randomData(24, 100, 500), backgroundColor: '#06b6d4' },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: { top: 32 } },
+        scales: { x: { ticks: { maxRotation: 0, autoSkip: true } } },
+        plugins: {
+          scrollbarZoom: {
+            enabled: true,
+            axes: 'x',
+          },
+        },
+      },
+    });
+
+    // --- 4. Y-only ---
+    new Chart(document.getElementById('chart-y-only'), {
+      type: 'line',
+      data: {
+        labels: monthLabels(12),
+        datasets: [
+          { label: 'Temperature', data: randomData(12, -10, 35), borderColor: '#f59e0b', backgroundColor: '#f59e0b', pointRadius: 4, fill: false },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: { right: 28 } },
+        scales: { x: { offset: true } },
+        plugins: {
+          scrollbarZoom: {
+            enabled: true,
+            axes: 'y',
+          },
+        },
+      },
+    });
+
+    // --- 5. Custom colors ---
+    new Chart(document.getElementById('chart-custom'), {
+      type: 'line',
+      data: {
+        labels: labels24,
+        datasets: [
+          { label: 'Metric A', data: randomData(24, 20, 80), borderColor: '#8b5cf6', backgroundColor: '#8b5cf6', pointRadius: 4, fill: false },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: { top: 32, right: 28 } },
+        scales: { x: { offset: true, ticks: { maxRotation: 0, autoSkip: true } } },
+        plugins: {
+          scrollbarZoom: {
+            enabled: true,
+            axes: 'both',
+            trackSize: 8,
+            handleRadius: 12,
+            colors: {
+              track: 'rgba(139,92,246,0.1)',
+              thumb: 'rgba(139,92,246,0.25)',
+              handleFill: '#ede9fe',
+              handleStroke: 'rgba(139,92,246,0.4)',
+              grip: 'rgba(139,92,246,0.6)',
+            },
+          },
+        },
+      },
+    });
+
+    // --- 6. Bottom X scrollbar ---
+    new Chart(document.getElementById('chart-bottom'), {
+      type: 'line',
+      data: {
+        labels: labels24,
+        datasets: [
+          { label: 'Downloads', data: randomData(24, 1000, 5000), borderColor: '#10b981', backgroundColor: '#10b981', pointRadius: 4, fill: false },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: { bottom: 32, right: 28 } },
+        scales: { x: { offset: true, ticks: { maxRotation: 0, autoSkip: true } } },
+        plugins: {
+          scrollbarZoom: {
+            enabled: true,
+            axes: 'both',
+            xPosition: 'bottom',
+            xOffset: 28,
+          },
+        },
+      },
+    });
+  </script>
+</body>
+</html>
