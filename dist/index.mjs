@@ -193,7 +193,7 @@ function xTrackRect(chart, opts) {
   const trackH = opts.trackSize ?? 6;
   const offset = opts.xOffset ?? 20;
   const pos = opts.xPosition ?? "top";
-  const cy = pos === "top" ? a.top - offset : a.bottom + offset;
+  const cy = pos === "top" ? offset : chart.height - offset;
   return { x: a.left, y: cy - trackH / 2, w: a.right - a.left, h: trackH, center: cy };
 }
 function yTrackRect(chart, opts) {
@@ -202,7 +202,7 @@ function yTrackRect(chart, opts) {
   const trackW = opts.trackSize ?? 6;
   const offset = opts.yOffset ?? 16;
   const pos = opts.yPosition ?? "right";
-  const cx = pos === "right" ? a.right + offset : a.left - offset;
+  const cx = pos === "right" ? chart.width - offset : offset;
   return { x: cx - trackW / 2, y: a.top, w: trackW, h: a.bottom - a.top, center: cx };
 }
 function hitTest(chart, state, opts, mx, my) {
