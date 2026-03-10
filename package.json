@@ -1,0 +1,49 @@
+{
+  "name": "chartjs-plugin-scrollbar-zoom",
+  "version": "1.0.0",
+  "description": "AmCharts-style scrollbar zoom controls for Chart.js — draggable handles, pan, and visual scrollbar tracks for both axes",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "chartjs",
+    "chart.js",
+    "plugin",
+    "scrollbar",
+    "zoom",
+    "pan",
+    "scroll",
+    "handles",
+    "amcharts"
+  ],
+  "author": "OdysseyAB",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OdysseyAB/chartjs-plugin-scrollbar-zoom"
+  },
+  "homepage": "https://odysseyab.github.io/chartjs-plugin-scrollbar-zoom",
+  "peerDependencies": {
+    "chart.js": ">=3.0.0"
+  },
+  "devDependencies": {
+    "chart.js": "^4.4.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0"
+  }
+}
