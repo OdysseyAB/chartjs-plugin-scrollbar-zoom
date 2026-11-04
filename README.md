@@ -73,6 +73,7 @@ All options are set under `options.plugins.scrollbarZoom`:
 | `darkColors` | `ScrollbarColors` | — | Custom dark-mode colors (see below) |
 | `preserveYTicks` | `boolean` | `true` | Keep only original Y tick values when zoomed |
 | `lockYMin` | `boolean` | `false` | Fix the Y range's minimum: one top handle zooms the maximum in and out, the thumb does not pan |
+| `initialYStart` | `number` | `0` | Where the Y range starts, as a fraction of the track from its top; a double-click resets to it. With `lockYMin` the top handle can then be dragged up (zoom out) as well as down (zoom in) |
 | `onZoomChange` | `function` | — | Callback on viewport change |
 
 ### ScrollbarColors

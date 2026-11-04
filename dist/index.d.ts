@@ -58,6 +58,14 @@ interface ScrollbarZoomOptions {
      */
     lockYMin?: boolean;
     /**
+     * Where the Y range starts, as a fraction of the track from its top (default `0`,
+     * the whole range). A double‑click resets to it rather than to `0`. With
+     * `lockYMin` this lets the range open part‑way, so the top handle can be
+     * dragged up to zoom out as well as down to zoom in. Clamped to
+     * `[0, 1 - minThumbFraction]`.
+     */
+    initialYStart?: number;
+    /**
      * Callback fired whenever the visible range changes.
      * Receives the current viewport fractions for both axes.
      */

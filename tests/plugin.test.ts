@@ -402,6 +402,48 @@ describe('ScrollbarZoomPlugin', () => {
     expect(two - one).toBe(1);
   });
 
+  it('initialYStart: the range opens part-way, the handle moves both ways, a double-click returns to it', async () => {
+    const onZoomChange = vi.fn();
+    canvas = createCanvas();
+    chart = createChart(canvas, { scrollbarZoom: { axes: 'y', lockYMin: true, initialYStart: 0.4, onZoomChange } });
+    await new Promise(r => setTimeout(r, 10));
+    const state = (chart as any).__scrollbarZoom;
+    expect(state.yS).toBeCloseTo(0.4, 5);
+    expect(chart.options.scales!['y']!.max).toBeCloseTo(60, 5); // applied once the full bounds are known
+    const a = chart.chartArea;
+    const h = a.bottom - a.top;
+
+    dragY(chart, a.top + h * 0.4, a.top + h * 0.1); // up: zoom out
+    expect(state.yS).toBeCloseTo(0.1, 5);
+    dragY(chart, a.top + h * 0.1, a.top + h * 0.7); // down: zoom in
+    expect(state.yS).toBeCloseTo(0.7, 5);
+
+    chart.canvas.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    expect(state.yS).toBeCloseTo(0.4, 5);
+    expect(chart.options.scales!['y']!.max).toBeCloseTo(60, 5);
+    expect(onZoomChange).toHaveBeenLastCalledWith(expect.objectContaining({ yStart: 0.4, yEnd: 1 }));
+  });
+
+  it('initialYStart is clamped so the thumb keeps its minimum size', async () => {
+    canvas = createCanvas();
+    chart = createChart(canvas, { scrollbarZoom: { axes: 'y', lockYMin: true, initialYStart: 2, minThumbFraction: 0.1 } });
+    await new Promise(r => setTimeout(r, 10));
+    expect((chart as any).__scrollbarZoom.yS).toBeCloseTo(0.9, 5);
+  });
+
+  it('without initialYStart a double-click still resets to the whole range (unchanged default)', async () => {
+    const onZoomChange = vi.fn();
+    canvas = createCanvas();
+    chart = createChart(canvas, { scrollbarZoom: { axes: 'y', lockYMin: true, onZoomChange } });
+    await new Promise(r => setTimeout(r, 10));
+    const a = chart.chartArea;
+    dragY(chart, a.top, a.top + (a.bottom - a.top) * 0.3);
+    chart.canvas.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    expect((chart as any).__scrollbarZoom.yS).toBe(0);
+    expect(chart.options.scales!['y']!.max).toBe(100);
+    expect(onZoomChange).toHaveBeenLastCalledWith({ xStart: 0, xEnd: 1, yStart: 0, yEnd: 1 });
+  });
+
   // --- preserveYTicks ---
 
   it('captures original Y ticks when preserveYTicks is true (default)', async () => {

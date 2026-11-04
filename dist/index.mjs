@@ -47,11 +47,17 @@ var ScrollbarZoomPlugin = {
     drawScrollbars(chart, state, opts);
   }
 };
+function initialYStart(opts) {
+  const v = opts.initialYStart;
+  if (typeof v !== "number" || !Number.isFinite(v)) return 0;
+  const minFrac = opts.minThumbFraction ?? 0.08;
+  return Math.min(1 - minFrac, Math.max(0, v));
+}
 function initState(chart, opts) {
   const state = {
     xS: 0,
     xE: 1,
-    yS: 0,
+    yS: initialYStart(opts),
     yE: 1,
     drag: null,
     dragMouseStart: 0,
@@ -66,6 +72,11 @@ function initState(chart, opts) {
       state.origYMax = yScale.max;
       if (opts.preserveYTicks !== false) {
         state.origYTicks = new Set(yScale.ticks.map((t) => t.value));
+      }
+      const yAxis = (opts.axes ?? "both") !== "x";
+      if (yAxis && state.yS > 0 && !state.drag) {
+        applyY(chart, state, opts);
+        chart.update("none");
       }
     }
   }, 0);
@@ -165,9 +176,10 @@ function initState(chart, opts) {
   document.addEventListener("mousemove", state.docMoveHandler);
   document.addEventListener("mouseup", state.docUpHandler);
   canvas.addEventListener("dblclick", () => {
+    const yStart = initialYStart(opts);
     state.xS = 0;
     state.xE = 1;
-    state.yS = 0;
+    state.yS = yStart;
     state.yE = 1;
     if (axes === "x" || axes === "both") {
       const labels = chart.data.labels;
@@ -178,12 +190,16 @@ function initState(chart, opts) {
     }
     if (axes === "y" || axes === "both") {
       if (state.origYMin !== void 0 && state.origYMax !== void 0) {
-        chart.options.scales["y"].min = state.origYMin;
-        chart.options.scales["y"].max = state.origYMax;
+        if (yStart > 0) {
+          applyY(chart, state, opts);
+        } else {
+          chart.options.scales["y"].min = state.origYMin;
+          chart.options.scales["y"].max = state.origYMax;
+        }
       }
     }
     chart.update("none");
-    opts.onZoomChange?.({ xStart: 0, xEnd: 1, yStart: 0, yEnd: 1 });
+    opts.onZoomChange?.({ xStart: 0, xEnd: 1, yStart, yEnd: 1 });
   });
   return state;
 }

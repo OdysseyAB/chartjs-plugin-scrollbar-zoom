@@ -80,6 +80,15 @@ export interface ScrollbarZoomOptions {
   lockYMin?: boolean;
 
   /**
+   * Where the Y range starts, as a fraction of the track from its top (default `0`,
+   * the whole range). A double‑click resets to it rather than to `0`. With
+   * `lockYMin` this lets the range open part‑way, so the top handle can be
+   * dragged up to zoom out as well as down to zoom in. Clamped to
+   * `[0, 1 - minThumbFraction]`.
+   */
+  initialYStart?: number;
+
+  /**
    * Callback fired whenever the visible range changes.
    * Receives the current viewport fractions for both axes.
    */
@@ -185,10 +194,18 @@ interface PluginState {
   docUpHandler: (() => void) | null;
 }
 
+/** The configured start of the Y range (`initialYStart`), clamped so the thumb keeps its minimum size. */
+function initialYStart(opts: ScrollbarZoomOptions): number {
+  const v = opts.initialYStart;
+  if (typeof v !== 'number' || !Number.isFinite(v)) return 0;
+  const minFrac = opts.minThumbFraction ?? 0.08;
+  return Math.min(1 - minFrac, Math.max(0, v));
+}
+
 function initState(chart: Chart, opts: ScrollbarZoomOptions): PluginState {
   const state: PluginState = {
     xS: 0, xE: 1,
-    yS: 0, yE: 1,
+    yS: initialYStart(opts), yE: 1,
     drag: null,
     dragMouseStart: 0,
     dragValStart: { s: 0, e: 0 },
@@ -204,6 +221,12 @@ function initState(chart: Chart, opts: ScrollbarZoomOptions): PluginState {
       state.origYMax = yScale.max;
       if (opts.preserveYTicks !== false) {
         state.origYTicks = new Set(yScale.ticks.map((t: any) => t.value));
+      }
+      // A range that opens part-way (initialYStart) is applied once the full bounds are known.
+      const yAxis = (opts.axes ?? 'both') !== 'x';
+      if (yAxis && state.yS > 0 && !state.drag) {
+        applyY(chart, state, opts);
+        chart.update('none');
       }
     }
   }, 0);
@@ -309,8 +332,9 @@ function initState(chart: Chart, opts: ScrollbarZoomOptions): PluginState {
 
   // --- Double‑click to reset ---
   canvas.addEventListener('dblclick', () => {
+    const yStart = initialYStart(opts);
     state.xS = 0; state.xE = 1;
-    state.yS = 0; state.yE = 1;
+    state.yS = yStart; state.yE = 1;
 
     if (axes === 'x' || axes === 'both') {
       const labels = chart.data.labels as string[];
@@ -321,13 +345,17 @@ function initState(chart: Chart, opts: ScrollbarZoomOptions): PluginState {
     }
     if (axes === 'y' || axes === 'both') {
       if (state.origYMin !== undefined && state.origYMax !== undefined) {
-        chart.options.scales!['y']!.min = state.origYMin;
-        chart.options.scales!['y']!.max = state.origYMax;
+        if (yStart > 0) {
+          applyY(chart, state, opts);
+        } else {
+          chart.options.scales!['y']!.min = state.origYMin;
+          chart.options.scales!['y']!.max = state.origYMax;
+        }
       }
     }
     chart.update('none');
 
-    opts.onZoomChange?.({ xStart: 0, xEnd: 1, yStart: 0, yEnd: 1 });
+    opts.onZoomChange?.({ xStart: 0, xEnd: 1, yStart, yEnd: 1 });
   });
 
   return state;
