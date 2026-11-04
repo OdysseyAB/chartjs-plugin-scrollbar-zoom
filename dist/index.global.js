@@ -62,6 +62,7 @@ var ScrollbarZoom = (() => {
       if (!state) return;
       if (state.docMoveHandler) document.removeEventListener("mousemove", state.docMoveHandler);
       if (state.docUpHandler) document.removeEventListener("mouseup", state.docUpHandler);
+      state.canvasListeners.abort();
       delete chart.__scrollbarZoom;
     },
     afterDraw(chart) {
@@ -88,7 +89,8 @@ var ScrollbarZoom = (() => {
       dragMouseStart: 0,
       dragValStart: { s: 0, e: 0 },
       docMoveHandler: null,
-      docUpHandler: null
+      docUpHandler: null,
+      canvasListeners: new AbortController()
     };
     setTimeout(() => {
       if (chart.__scrollbarZoom !== state || !chart.canvas) return;
@@ -119,7 +121,7 @@ var ScrollbarZoom = (() => {
       state.dragValStart = target.startsWith("x") ? { s: state.xS, e: state.xE } : { s: state.yS, e: state.yE };
       e.preventDefault();
       e.stopPropagation();
-    });
+    }, { signal: state.canvasListeners.signal });
     state.docMoveHandler = (e) => {
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
@@ -226,7 +228,7 @@ var ScrollbarZoom = (() => {
       }
       opts.onZoomChange?.({ xStart: 0, xEnd: 1, yStart, yEnd: 1 });
       chart.update("none");
-    });
+    }, { signal: state.canvasListeners.signal });
     return state;
   }
   function xTrackRect(chart, opts) {

@@ -163,6 +163,8 @@ const ScrollbarZoomPlugin: Plugin<'line' | 'bar'> = {
     if (!state) return;
     if (state.docMoveHandler) document.removeEventListener('mousemove', state.docMoveHandler);
     if (state.docUpHandler) document.removeEventListener('mouseup', state.docUpHandler);
+    // The canvas outlives the chart when a new chart is made on it: its listeners must not answer for this one.
+    state.canvasListeners.abort();
     delete (chart as any).__scrollbarZoom;
   },
 
@@ -192,6 +194,8 @@ interface PluginState {
   dragValStart: { s: number; e: number };
   docMoveHandler: ((e: MouseEvent) => void) | null;
   docUpHandler: (() => void) | null;
+  /** Removes the listeners on the chart's canvas (mousedown, dblclick) when the chart is destroyed. */
+  canvasListeners: AbortController;
 }
 
 /** The configured start of the Y range (`initialYStart`), clamped so the thumb keeps its minimum size. */
@@ -211,6 +215,7 @@ function initState(chart: Chart, opts: ScrollbarZoomOptions): PluginState {
     dragValStart: { s: 0, e: 0 },
     docMoveHandler: null,
     docUpHandler: null,
+    canvasListeners: new AbortController(),
   };
 
   // Capture original Y bounds after first render
@@ -251,7 +256,7 @@ function initState(chart: Chart, opts: ScrollbarZoomOptions): PluginState {
       : { s: state.yS, e: state.yE };
     e.preventDefault();
     e.stopPropagation();
-  });
+  }, { signal: state.canvasListeners.signal });
 
   // --- Mouse move (on document for drag beyond canvas) ---
   state.docMoveHandler = (e: MouseEvent) => {
@@ -359,7 +364,7 @@ function initState(chart: Chart, opts: ScrollbarZoomOptions): PluginState {
     }
     opts.onZoomChange?.({ xStart: 0, xEnd: 1, yStart, yEnd: 1 }); // before the redraw, as in a drag
     chart.update('none');
-  });
+  }, { signal: state.canvasListeners.signal });
 
   return state;
 }

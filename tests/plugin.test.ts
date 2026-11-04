@@ -455,6 +455,21 @@ describe('ScrollbarZoomPlugin', () => {
     }
   });
 
+  it('a destroyed chart no longer answers events on its canvas when a new chart is made on it', async () => {
+    const oldZoom = vi.fn();
+    const newZoom = vi.fn();
+    canvas = createCanvas();
+    const old = createChart(canvas, { scrollbarZoom: { axes: 'y', lockYMin: true, onZoomChange: oldZoom } });
+    await new Promise(r => setTimeout(r, 10));
+    old.destroy();
+    chart = createChart(canvas, { scrollbarZoom: { axes: 'y', lockYMin: true, onZoomChange: newZoom } });
+    await new Promise(r => setTimeout(r, 10));
+
+    expect(() => canvas.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))).not.toThrow();
+    expect(oldZoom).not.toHaveBeenCalled();
+    expect(newZoom).toHaveBeenCalledTimes(1);
+  });
+
   it('initialYStart is clamped so the thumb keeps its minimum size', async () => {
     canvas = createCanvas();
     chart = createChart(canvas, { scrollbarZoom: { axes: 'y', lockYMin: true, initialYStart: 2, minThumbFraction: 0.1 } });
