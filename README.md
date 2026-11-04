@@ -72,6 +72,7 @@ All options are set under `options.plugins.scrollbarZoom`:
 | `colors` | `ScrollbarColors` | — | Custom light-mode colors (see below) |
 | `darkColors` | `ScrollbarColors` | — | Custom dark-mode colors (see below) |
 | `preserveYTicks` | `boolean` | `true` | Keep only original Y tick values when zoomed |
+| `lockYMin` | `boolean` | `false` | Fix the Y range's minimum: one top handle zooms the maximum in and out, the thumb does not pan |
 | `onZoomChange` | `function` | — | Callback on viewport change |
 
 ### ScrollbarColors

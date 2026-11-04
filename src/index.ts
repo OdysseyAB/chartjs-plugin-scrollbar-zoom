@@ -72,6 +72,14 @@ export interface ScrollbarZoomOptions {
   preserveYTicks?: boolean;
 
   /**
+   * Keep the Y range's minimum fixed (default `false`). Only the top handle is
+   * drawn and draggable, the thumb does not pan, so the scrollbar zooms the
+   * range's maximum in and out while its minimum stays put — e.g. a radius
+   * that always starts at the centre.
+   */
+  lockYMin?: boolean;
+
+  /**
    * Callback fired whenever the visible range changes.
    * Receives the current viewport fractions for both axes.
    */
@@ -384,6 +392,7 @@ function hitTest(
       const ty = yt.y + state.yS * yt.h;
       const by = yt.y + state.yE * yt.h;
       if (Math.hypot(mx - yt.center, my - ty) <= hr) return 'yT';
+      if (opts.lockYMin) return null;
       if (Math.hypot(mx - yt.center, my - by) <= hr) return 'yB';
       if (my >= ty && my <= by && Math.abs(mx - yt.center) <= hr) return 'yThumb';
     }
@@ -455,7 +464,7 @@ function drawScrollbars(chart: Chart, state: PluginState, opts: ScrollbarZoomOpt
       const thumbH = (state.yE - state.yS) * yt.h;
       drawThumb(ctx, yt.x, thumbY, yt.w, thumbH, trackSize, colors.thumb);
       drawHandle(ctx, yt.center, thumbY, handleR, false, colors);
-      drawHandle(ctx, yt.center, thumbY + thumbH, handleR, false, colors);
+      if (!opts.lockYMin) drawHandle(ctx, yt.center, thumbY + thumbH, handleR, false, colors);
     }
   }
 

@@ -1,6 +1,6 @@
 {
   "name": "@odysseyab/chartjs-plugin-scrollbar-zoom",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "AmCharts-style scrollbar zoom controls for Chart.js — draggable handles, pan, and visual scrollbar tracks for both axes",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

@@ -330,6 +330,78 @@ describe('ScrollbarZoomPlugin', () => {
     // But at minimum it should not throw
   });
 
+  // --- lockYMin ---
+
+  /** Drag on the Y scrollbar from (cx, fromY) to (cx, toY), as a user would. */
+  function dragY(c: Chart, fromY: number, toY: number) {
+    const cx = c.width - 16; // default yOffset, right side
+    c.canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: cx, clientY: fromY, bubbles: true }));
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: cx, clientY: toY, bubbles: true }));
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+  }
+
+  it('lockYMin: the top handle zooms the maximum, the minimum stays', async () => {
+    const onZoomChange = vi.fn();
+    canvas = createCanvas();
+    chart = createChart(canvas, { scrollbarZoom: { axes: 'y', lockYMin: true, onZoomChange } });
+    await new Promise(r => setTimeout(r, 10));
+    const a = chart.chartArea;
+    const h = a.bottom - a.top;
+
+    dragY(chart, a.top, a.top + h * 0.25);
+    const state = (chart as any).__scrollbarZoom;
+    expect(state.yS).toBeCloseTo(0.25, 5);
+    expect(state.yE).toBe(1);
+    expect(onZoomChange).toHaveBeenLastCalledWith(expect.objectContaining({ yEnd: 1 }));
+    expect(chart.options.scales!['y']!.min).toBe(0);
+    expect(chart.options.scales!['y']!.max).toBeCloseTo(75, 5);
+  });
+
+  it('lockYMin: the bottom handle and the thumb cannot be dragged', async () => {
+    const onZoomChange = vi.fn();
+    canvas = createCanvas();
+    chart = createChart(canvas, { scrollbarZoom: { axes: 'y', lockYMin: true, onZoomChange } });
+    await new Promise(r => setTimeout(r, 10));
+    const a = chart.chartArea;
+    const h = a.bottom - a.top;
+
+    dragY(chart, a.top, a.top + h * 0.5);       // zoom in first
+    onZoomChange.mockClear();
+    dragY(chart, a.bottom, a.bottom - h * 0.2); // bottom handle: locked
+    dragY(chart, a.top + h * 0.75, a.top + h * 0.6); // thumb: no pan
+    const state = (chart as any).__scrollbarZoom;
+    expect(onZoomChange).not.toHaveBeenCalled();
+    expect(state.yS).toBeCloseTo(0.5, 5);
+    expect(state.yE).toBe(1);
+  });
+
+  it('without lockYMin the bottom handle still moves (unchanged default)', async () => {
+    canvas = createCanvas();
+    chart = createChart(canvas, { scrollbarZoom: { axes: 'y' } });
+    await new Promise(r => setTimeout(r, 10));
+    const a = chart.chartArea;
+    const h = a.bottom - a.top;
+    dragY(chart, a.bottom, a.bottom - h * 0.2);
+    expect((chart as any).__scrollbarZoom.yE).toBeCloseTo(0.8, 5);
+  });
+
+  it('lockYMin draws one Y handle instead of two', async () => {
+    const handles = async (lock: boolean) => {
+      const cv = createCanvas();
+      const c = createChart(cv, { scrollbarZoom: { axes: 'y', lockYMin: lock } });
+      await new Promise(r => setTimeout(r, 10));
+      const ctx = c.ctx as any;
+      ctx.arc.mockClear();
+      c.draw();
+      const n = ctx.arc.mock.calls.length;
+      c.destroy();
+      return n;
+    };
+    const two = await handles(false);
+    const one = await handles(true);
+    expect(two - one).toBe(1);
+  });
+
   // --- preserveYTicks ---
 
   it('captures original Y ticks when preserveYTicks is true (default)', async () => {

@@ -51,6 +51,13 @@ interface ScrollbarZoomOptions {
      */
     preserveYTicks?: boolean;
     /**
+     * Keep the Y range's minimum fixed (default `false`). Only the top handle is
+     * drawn and draggable, the thumb does not pan, so the scrollbar zooms the
+     * range's maximum in and out while its minimum stays put — e.g. a radius
+     * that always starts at the centre.
+     */
+    lockYMin?: boolean;
+    /**
      * Callback fired whenever the visible range changes.
      * Receives the current viewport fractions for both axes.
      */
