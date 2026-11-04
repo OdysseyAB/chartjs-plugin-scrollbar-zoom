@@ -1,4 +1,4 @@
-import { Plugin } from 'chart.js';
+import { Plugin, Chart } from 'chart.js';
 
 /** Color values for scrollbar components. */
 interface ScrollbarColors {
@@ -51,6 +51,21 @@ interface ScrollbarZoomOptions {
      */
     preserveYTicks?: boolean;
     /**
+     * Keep the Y range's minimum fixed (default `false`). Only the top handle is
+     * drawn and draggable, the thumb does not pan, so the scrollbar zooms the
+     * range's maximum in and out while its minimum stays put — e.g. a radius
+     * that always starts at the centre.
+     */
+    lockYMin?: boolean;
+    /**
+     * Where the Y range starts, as a fraction of the track from its top (default `0`,
+     * the whole range). A double‑click resets to it rather than to `0`. With
+     * `lockYMin` this lets the range open part‑way, so the top handle can be
+     * dragged up to zoom out as well as down to zoom in. Clamped to
+     * `[0, 1 - minThumbFraction]`.
+     */
+    initialYStart?: number;
+    /**
      * Callback fired whenever the visible range changes.
      * Receives the current viewport fractions for both axes.
      */
@@ -62,5 +77,10 @@ interface ScrollbarZoomOptions {
     }) => void;
 }
 declare const ScrollbarZoomPlugin: Plugin<'line' | 'bar'>;
+/**
+ * Resets a chart's scrollbar zoom to its initial range, as a double‑click on the chart does — for a reset button
+ * outside the canvas. Does nothing for a chart without the plugin (or with it disabled).
+ */
+declare function resetScrollbarZoom(chart: Chart): void;
 
-export { type ScrollbarAxes, type ScrollbarColors, type ScrollbarZoomOptions, ScrollbarZoomPlugin, type XPosition, type YPosition, ScrollbarZoomPlugin as default };
+export { type ScrollbarAxes, type ScrollbarColors, type ScrollbarZoomOptions, ScrollbarZoomPlugin, type XPosition, type YPosition, ScrollbarZoomPlugin as default, resetScrollbarZoom };

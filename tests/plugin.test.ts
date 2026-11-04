@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   ScrollbarZoomPlugin,
+  resetScrollbarZoom,
   ScrollbarZoomOptions,
   ScrollbarColors,
 } from '../src/index';
@@ -328,6 +329,188 @@ describe('ScrollbarZoomPlugin', () => {
 
     // The callback may or may not fire depending on hit-test (jsdom has no real chartArea)
     // But at minimum it should not throw
+  });
+
+  // --- lockYMin ---
+
+  /** Drag on the Y scrollbar from (cx, fromY) to (cx, toY), as a user would. */
+  function dragY(c: Chart, fromY: number, toY: number) {
+    const cx = c.width - 16; // default yOffset, right side
+    c.canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: cx, clientY: fromY, bubbles: true }));
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: cx, clientY: toY, bubbles: true }));
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+  }
+
+  it('lockYMin: the top handle zooms the maximum, the minimum stays', async () => {
+    const onZoomChange = vi.fn();
+    canvas = createCanvas();
+    chart = createChart(canvas, { scrollbarZoom: { axes: 'y', lockYMin: true, onZoomChange } });
+    await new Promise(r => setTimeout(r, 10));
+    const a = chart.chartArea;
+    const h = a.bottom - a.top;
+
+    dragY(chart, a.top, a.top + h * 0.25);
+    const state = (chart as any).__scrollbarZoom;
+    expect(state.yS).toBeCloseTo(0.25, 5);
+    expect(state.yE).toBe(1);
+    expect(onZoomChange).toHaveBeenLastCalledWith(expect.objectContaining({ yEnd: 1 }));
+    expect(chart.options.scales!['y']!.min).toBe(0);
+    expect(chart.options.scales!['y']!.max).toBeCloseTo(75, 5);
+  });
+
+  it('lockYMin: the bottom handle and the thumb cannot be dragged', async () => {
+    const onZoomChange = vi.fn();
+    canvas = createCanvas();
+    chart = createChart(canvas, { scrollbarZoom: { axes: 'y', lockYMin: true, onZoomChange } });
+    await new Promise(r => setTimeout(r, 10));
+    const a = chart.chartArea;
+    const h = a.bottom - a.top;
+
+    dragY(chart, a.top, a.top + h * 0.5);       // zoom in first
+    onZoomChange.mockClear();
+    dragY(chart, a.bottom, a.bottom - h * 0.2); // bottom handle: locked
+    dragY(chart, a.top + h * 0.75, a.top + h * 0.6); // thumb: no pan
+    const state = (chart as any).__scrollbarZoom;
+    expect(onZoomChange).not.toHaveBeenCalled();
+    expect(state.yS).toBeCloseTo(0.5, 5);
+    expect(state.yE).toBe(1);
+  });
+
+  it('without lockYMin the bottom handle still moves (unchanged default)', async () => {
+    canvas = createCanvas();
+    chart = createChart(canvas, { scrollbarZoom: { axes: 'y' } });
+    await new Promise(r => setTimeout(r, 10));
+    const a = chart.chartArea;
+    const h = a.bottom - a.top;
+    dragY(chart, a.bottom, a.bottom - h * 0.2);
+    expect((chart as any).__scrollbarZoom.yE).toBeCloseTo(0.8, 5);
+  });
+
+  it('lockYMin draws one Y handle instead of two', async () => {
+    const handles = async (lock: boolean) => {
+      const cv = createCanvas();
+      const c = createChart(cv, { scrollbarZoom: { axes: 'y', lockYMin: lock } });
+      await new Promise(r => setTimeout(r, 10));
+      const ctx = c.ctx as any;
+      ctx.arc.mockClear();
+      c.draw();
+      const n = ctx.arc.mock.calls.length;
+      c.destroy();
+      return n;
+    };
+    const two = await handles(false);
+    const one = await handles(true);
+    expect(two - one).toBe(1);
+  });
+
+  it('initialYStart: the range opens part-way, the handle moves both ways, a double-click returns to it', async () => {
+    const onZoomChange = vi.fn();
+    canvas = createCanvas();
+    chart = createChart(canvas, { scrollbarZoom: { axes: 'y', lockYMin: true, initialYStart: 0.4, onZoomChange } });
+    await new Promise(r => setTimeout(r, 10));
+    const state = (chart as any).__scrollbarZoom;
+    expect(state.yS).toBeCloseTo(0.4, 5);
+    expect(chart.options.scales!['y']!.max).toBeCloseTo(60, 5); // applied once the full bounds are known
+    const a = chart.chartArea;
+    const h = a.bottom - a.top;
+
+    dragY(chart, a.top + h * 0.4, a.top + h * 0.1); // up: zoom out
+    expect(state.yS).toBeCloseTo(0.1, 5);
+    dragY(chart, a.top + h * 0.1, a.top + h * 0.7); // down: zoom in
+    expect(state.yS).toBeCloseTo(0.7, 5);
+
+    chart.canvas.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    expect(state.yS).toBeCloseTo(0.4, 5);
+    expect(chart.options.scales!['y']!.max).toBeCloseTo(60, 5);
+    expect(onZoomChange).toHaveBeenLastCalledWith(expect.objectContaining({ yStart: 0.4, yEnd: 1 }));
+  });
+
+  it('reports the range before it redraws, so a chart drawing from it is never one step behind', async () => {
+    const order: string[] = [];
+    canvas = createCanvas();
+    chart = createChart(canvas, {
+      scrollbarZoom: { axes: 'y', lockYMin: true, initialYStart: 0.4, onZoomChange: () => order.push('zoom') },
+    });
+    await new Promise(r => setTimeout(r, 10));
+    const draw = chart.draw.bind(chart);
+    chart.draw = () => { order.push('draw'); draw(); };
+    const a = chart.chartArea;
+    const h = a.bottom - a.top;
+
+    dragY(chart, a.top + h * 0.4, a.top + h * 0.7);
+    expect(order.slice(-2)).toEqual(['zoom', 'draw']);
+    order.length = 0;
+    chart.canvas.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    expect(order).toEqual(['zoom', 'draw']);
+  });
+
+  it('a chart destroyed before its initialYStart is applied does not throw', () => {
+    vi.useFakeTimers();
+    try {
+      canvas = createCanvas();
+      const c = createChart(canvas, { scrollbarZoom: { axes: 'y', lockYMin: true, initialYStart: 0.4 } });
+      c.destroy();
+      expect(() => vi.runAllTimers()).not.toThrow();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a destroyed chart no longer answers events on its canvas when a new chart is made on it', async () => {
+    const oldZoom = vi.fn();
+    const newZoom = vi.fn();
+    canvas = createCanvas();
+    const old = createChart(canvas, { scrollbarZoom: { axes: 'y', lockYMin: true, onZoomChange: oldZoom } });
+    await new Promise(r => setTimeout(r, 10));
+    old.destroy();
+    chart = createChart(canvas, { scrollbarZoom: { axes: 'y', lockYMin: true, onZoomChange: newZoom } });
+    await new Promise(r => setTimeout(r, 10));
+
+    expect(() => canvas.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))).not.toThrow();
+    expect(oldZoom).not.toHaveBeenCalled();
+    expect(newZoom).toHaveBeenCalledTimes(1);
+  });
+
+  it('resetScrollbarZoom resets like a double-click (for a reset button), and ignores a chart without the plugin', async () => {
+    const onZoomChange = vi.fn();
+    canvas = createCanvas();
+    chart = createChart(canvas, { scrollbarZoom: { axes: 'y', lockYMin: true, initialYStart: 0.4, onZoomChange } });
+    await new Promise(r => setTimeout(r, 10));
+    const a = chart.chartArea;
+    const h = a.bottom - a.top;
+    dragY(chart, a.top + h * 0.4, a.top + h * 0.7);
+    const state = (chart as any).__scrollbarZoom;
+    expect(state.yS).toBeCloseTo(0.7, 5);
+
+    resetScrollbarZoom(chart);
+    expect(state.yS).toBeCloseTo(0.4, 5);
+    expect(chart.options.scales!['y']!.max).toBeCloseTo(60, 5);
+    expect(onZoomChange).toHaveBeenLastCalledWith({ xStart: 0, xEnd: 1, yStart: 0.4, yEnd: 1 });
+
+    const cv = createCanvas();
+    const plain = createChart(cv, { scrollbarZoom: { enabled: false } });
+    expect(() => resetScrollbarZoom(plain)).not.toThrow();
+    plain.destroy();
+  });
+
+  it('initialYStart is clamped so the thumb keeps its minimum size', async () => {
+    canvas = createCanvas();
+    chart = createChart(canvas, { scrollbarZoom: { axes: 'y', lockYMin: true, initialYStart: 2, minThumbFraction: 0.1 } });
+    await new Promise(r => setTimeout(r, 10));
+    expect((chart as any).__scrollbarZoom.yS).toBeCloseTo(0.9, 5);
+  });
+
+  it('without initialYStart a double-click still resets to the whole range (unchanged default)', async () => {
+    const onZoomChange = vi.fn();
+    canvas = createCanvas();
+    chart = createChart(canvas, { scrollbarZoom: { axes: 'y', lockYMin: true, onZoomChange } });
+    await new Promise(r => setTimeout(r, 10));
+    const a = chart.chartArea;
+    dragY(chart, a.top, a.top + (a.bottom - a.top) * 0.3);
+    chart.canvas.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    expect((chart as any).__scrollbarZoom.yS).toBe(0);
+    expect(chart.options.scales!['y']!.max).toBe(100);
+    expect(onZoomChange).toHaveBeenLastCalledWith({ xStart: 0, xEnd: 1, yStart: 0, yEnd: 1 });
   });
 
   // --- preserveYTicks ---

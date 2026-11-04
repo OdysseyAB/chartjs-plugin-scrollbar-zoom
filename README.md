@@ -72,6 +72,8 @@ All options are set under `options.plugins.scrollbarZoom`:
 | `colors` | `ScrollbarColors` | — | Custom light-mode colors (see below) |
 | `darkColors` | `ScrollbarColors` | — | Custom dark-mode colors (see below) |
 | `preserveYTicks` | `boolean` | `true` | Keep only original Y tick values when zoomed |
+| `lockYMin` | `boolean` | `false` | Fix the Y range's minimum: one top handle zooms the maximum in and out, the thumb does not pan |
+| `initialYStart` | `number` | `0` | Where the Y range starts, as a fraction of the track from its top; a double-click resets to it. With `lockYMin` the top handle can then be dragged up (zoom out) as well as down (zoom in) |
 | `onZoomChange` | `function` | — | Callback on viewport change |
 
 ### ScrollbarColors
@@ -205,7 +207,14 @@ plugins: {
 |---|---|
 | Drag a handle | Zoom in/out from that end |
 | Drag the thumb | Pan the visible range |
-| Double-click chart | Reset to full view |
+| Double-click chart | Reset to the initial range (full view, or `initialYStart`) |
+
+To reset from your own control, e.g. a reset button outside the canvas, call `resetScrollbarZoom(chart)`: it does what a double-click does, `onZoomChange` included.
+
+```ts
+import { resetScrollbarZoom } from '@odysseyab/chartjs-plugin-scrollbar-zoom';
+resetButton.addEventListener('click', () => resetScrollbarZoom(chart));
+```
 
 ## TypeScript
 

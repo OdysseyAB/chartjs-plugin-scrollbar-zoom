@@ -72,6 +72,23 @@ export interface ScrollbarZoomOptions {
   preserveYTicks?: boolean;
 
   /**
+   * Keep the Y range's minimum fixed (default `false`). Only the top handle is
+   * drawn and draggable, the thumb does not pan, so the scrollbar zooms the
+   * range's maximum in and out while its minimum stays put — e.g. a radius
+   * that always starts at the centre.
+   */
+  lockYMin?: boolean;
+
+  /**
+   * Where the Y range starts, as a fraction of the track from its top (default `0`,
+   * the whole range). A double‑click resets to it rather than to `0`. With
+   * `lockYMin` this lets the range open part‑way, so the top handle can be
+   * dragged up to zoom out as well as down to zoom in. Clamped to
+   * `[0, 1 - minThumbFraction]`.
+   */
+  initialYStart?: number;
+
+  /**
    * Callback fired whenever the visible range changes.
    * Receives the current viewport fractions for both axes.
    */
@@ -146,6 +163,8 @@ const ScrollbarZoomPlugin: Plugin<'line' | 'bar'> = {
     if (!state) return;
     if (state.docMoveHandler) document.removeEventListener('mousemove', state.docMoveHandler);
     if (state.docUpHandler) document.removeEventListener('mouseup', state.docUpHandler);
+    // The canvas outlives the chart when a new chart is made on it: its listeners must not answer for this one.
+    state.canvasListeners.abort();
     delete (chart as any).__scrollbarZoom;
   },
 
@@ -175,21 +194,34 @@ interface PluginState {
   dragValStart: { s: number; e: number };
   docMoveHandler: ((e: MouseEvent) => void) | null;
   docUpHandler: (() => void) | null;
+  /** Removes the listeners on the chart's canvas (mousedown, dblclick) when the chart is destroyed. */
+  canvasListeners: AbortController;
+}
+
+/** The configured start of the Y range (`initialYStart`), clamped so the thumb keeps its minimum size. */
+function initialYStart(opts: ScrollbarZoomOptions): number {
+  const v = opts.initialYStart;
+  if (typeof v !== 'number' || !Number.isFinite(v)) return 0;
+  const minFrac = opts.minThumbFraction ?? 0.08;
+  return Math.min(1 - minFrac, Math.max(0, v));
 }
 
 function initState(chart: Chart, opts: ScrollbarZoomOptions): PluginState {
   const state: PluginState = {
     xS: 0, xE: 1,
-    yS: 0, yE: 1,
+    yS: initialYStart(opts), yE: 1,
     drag: null,
     dragMouseStart: 0,
     dragValStart: { s: 0, e: 0 },
     docMoveHandler: null,
     docUpHandler: null,
+    canvasListeners: new AbortController(),
   };
 
   // Capture original Y bounds after first render
   setTimeout(() => {
+    // The chart may be gone by now (destroyed right after it was made, e.g. a re-render): updating it would throw.
+    if ((chart as any).__scrollbarZoom !== state || !chart.canvas) return;
     const yScale = chart.scales?.['y'];
     if (yScale) {
       state.origYMin = yScale.min;
@@ -197,11 +229,16 @@ function initState(chart: Chart, opts: ScrollbarZoomOptions): PluginState {
       if (opts.preserveYTicks !== false) {
         state.origYTicks = new Set(yScale.ticks.map((t: any) => t.value));
       }
+      // A range that opens part-way (initialYStart) is applied once the full bounds are known.
+      const yAxis = (opts.axes ?? 'both') !== 'x';
+      if (yAxis && state.yS > 0 && !state.drag) {
+        applyY(chart, state, opts);
+        chart.update('none');
+      }
     }
   }, 0);
 
   const canvas = chart.canvas;
-  const axes = opts.axes ?? 'both';
 
   // --- Mouse down ---
   canvas.addEventListener('mousedown', (e: MouseEvent) => {
@@ -218,7 +255,7 @@ function initState(chart: Chart, opts: ScrollbarZoomOptions): PluginState {
       : { s: state.yS, e: state.yE };
     e.preventDefault();
     e.stopPropagation();
-  });
+  }, { signal: state.canvasListeners.signal });
 
   // --- Mouse move (on document for drag beyond canvas) ---
   state.docMoveHandler = (e: MouseEvent) => {
@@ -280,12 +317,14 @@ function initState(chart: Chart, opts: ScrollbarZoomOptions): PluginState {
       canvas.style.cursor = state.drag === 'yThumb' ? 'grabbing' : 'ns-resize';
     }
 
-    chart.update('none');
-
+    // Report the range before redrawing, so a chart that draws from it (in its own plugin) draws the new range
+    // in this update rather than the previous one.
     opts.onZoomChange?.({
       xStart: state.xS, xEnd: state.xE,
       yStart: state.yS, yEnd: state.yE,
     });
+
+    chart.update('none');
   };
 
   // --- Mouse up ---
@@ -300,29 +339,37 @@ function initState(chart: Chart, opts: ScrollbarZoomOptions): PluginState {
   document.addEventListener('mouseup', state.docUpHandler);
 
   // --- Double‑click to reset ---
-  canvas.addEventListener('dblclick', () => {
-    state.xS = 0; state.xE = 1;
-    state.yS = 0; state.yE = 1;
+  canvas.addEventListener('dblclick', () => resetState(chart, state, opts), { signal: state.canvasListeners.signal });
 
-    if (axes === 'x' || axes === 'both') {
-      const labels = chart.data.labels as string[];
-      if (labels?.length) {
-        chart.options.scales!['x']!.min = 0;
-        chart.options.scales!['x']!.max = labels.length - 1;
-      }
+  return state;
+}
+
+/** Back to the initial range (`initialYStart` on Y), reported through `onZoomChange` before the redraw. */
+function resetState(chart: Chart, state: PluginState, opts: ScrollbarZoomOptions) {
+  const axes = opts.axes ?? 'both';
+  const yStart = initialYStart(opts);
+  state.xS = 0; state.xE = 1;
+  state.yS = yStart; state.yE = 1;
+
+  if (axes === 'x' || axes === 'both') {
+    const labels = chart.data.labels as string[];
+    if (labels?.length) {
+      chart.options.scales!['x']!.min = 0;
+      chart.options.scales!['x']!.max = labels.length - 1;
     }
-    if (axes === 'y' || axes === 'both') {
-      if (state.origYMin !== undefined && state.origYMax !== undefined) {
+  }
+  if (axes === 'y' || axes === 'both') {
+    if (state.origYMin !== undefined && state.origYMax !== undefined) {
+      if (yStart > 0) {
+        applyY(chart, state, opts);
+      } else {
         chart.options.scales!['y']!.min = state.origYMin;
         chart.options.scales!['y']!.max = state.origYMax;
       }
     }
-    chart.update('none');
-
-    opts.onZoomChange?.({ xStart: 0, xEnd: 1, yStart: 0, yEnd: 1 });
-  });
-
-  return state;
+  }
+  opts.onZoomChange?.({ xStart: 0, xEnd: 1, yStart, yEnd: 1 }); // before the redraw, as in a drag
+  chart.update('none');
 }
 
 // ---------------------------------------------------------------------------
@@ -384,6 +431,7 @@ function hitTest(
       const ty = yt.y + state.yS * yt.h;
       const by = yt.y + state.yE * yt.h;
       if (Math.hypot(mx - yt.center, my - ty) <= hr) return 'yT';
+      if (opts.lockYMin) return null;
       if (Math.hypot(mx - yt.center, my - by) <= hr) return 'yB';
       if (my >= ty && my <= by && Math.abs(mx - yt.center) <= hr) return 'yThumb';
     }
@@ -455,7 +503,7 @@ function drawScrollbars(chart: Chart, state: PluginState, opts: ScrollbarZoomOpt
       const thumbH = (state.yE - state.yS) * yt.h;
       drawThumb(ctx, yt.x, thumbY, yt.w, thumbH, trackSize, colors.thumb);
       drawHandle(ctx, yt.center, thumbY, handleR, false, colors);
-      drawHandle(ctx, yt.center, thumbY + thumbH, handleR, false, colors);
+      if (!opts.lockYMin) drawHandle(ctx, yt.center, thumbY + thumbH, handleR, false, colors);
     }
   }
 
@@ -519,6 +567,16 @@ function drawHandle(
 // ---------------------------------------------------------------------------
 // Exports
 // ---------------------------------------------------------------------------
+
+/**
+ * Resets a chart's scrollbar zoom to its initial range, as a double‑click on the chart does — for a reset button
+ * outside the canvas. Does nothing for a chart without the plugin (or with it disabled).
+ */
+export function resetScrollbarZoom(chart: Chart): void {
+  const state: PluginState | undefined = (chart as any).__scrollbarZoom;
+  if (!state) return;
+  resetState(chart, state, getOpts(chart));
+}
 
 export default ScrollbarZoomPlugin;
 export { ScrollbarZoomPlugin };
