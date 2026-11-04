@@ -239,7 +239,6 @@ function initState(chart: Chart, opts: ScrollbarZoomOptions): PluginState {
   }, 0);
 
   const canvas = chart.canvas;
-  const axes = opts.axes ?? 'both';
 
   // --- Mouse down ---
   canvas.addEventListener('mousedown', (e: MouseEvent) => {
@@ -340,33 +339,37 @@ function initState(chart: Chart, opts: ScrollbarZoomOptions): PluginState {
   document.addEventListener('mouseup', state.docUpHandler);
 
   // --- Double‑click to reset ---
-  canvas.addEventListener('dblclick', () => {
-    const yStart = initialYStart(opts);
-    state.xS = 0; state.xE = 1;
-    state.yS = yStart; state.yE = 1;
-
-    if (axes === 'x' || axes === 'both') {
-      const labels = chart.data.labels as string[];
-      if (labels?.length) {
-        chart.options.scales!['x']!.min = 0;
-        chart.options.scales!['x']!.max = labels.length - 1;
-      }
-    }
-    if (axes === 'y' || axes === 'both') {
-      if (state.origYMin !== undefined && state.origYMax !== undefined) {
-        if (yStart > 0) {
-          applyY(chart, state, opts);
-        } else {
-          chart.options.scales!['y']!.min = state.origYMin;
-          chart.options.scales!['y']!.max = state.origYMax;
-        }
-      }
-    }
-    opts.onZoomChange?.({ xStart: 0, xEnd: 1, yStart, yEnd: 1 }); // before the redraw, as in a drag
-    chart.update('none');
-  }, { signal: state.canvasListeners.signal });
+  canvas.addEventListener('dblclick', () => resetState(chart, state, opts), { signal: state.canvasListeners.signal });
 
   return state;
+}
+
+/** Back to the initial range (`initialYStart` on Y), reported through `onZoomChange` before the redraw. */
+function resetState(chart: Chart, state: PluginState, opts: ScrollbarZoomOptions) {
+  const axes = opts.axes ?? 'both';
+  const yStart = initialYStart(opts);
+  state.xS = 0; state.xE = 1;
+  state.yS = yStart; state.yE = 1;
+
+  if (axes === 'x' || axes === 'both') {
+    const labels = chart.data.labels as string[];
+    if (labels?.length) {
+      chart.options.scales!['x']!.min = 0;
+      chart.options.scales!['x']!.max = labels.length - 1;
+    }
+  }
+  if (axes === 'y' || axes === 'both') {
+    if (state.origYMin !== undefined && state.origYMax !== undefined) {
+      if (yStart > 0) {
+        applyY(chart, state, opts);
+      } else {
+        chart.options.scales!['y']!.min = state.origYMin;
+        chart.options.scales!['y']!.max = state.origYMax;
+      }
+    }
+  }
+  opts.onZoomChange?.({ xStart: 0, xEnd: 1, yStart, yEnd: 1 }); // before the redraw, as in a drag
+  chart.update('none');
 }
 
 // ---------------------------------------------------------------------------
@@ -564,6 +567,16 @@ function drawHandle(
 // ---------------------------------------------------------------------------
 // Exports
 // ---------------------------------------------------------------------------
+
+/**
+ * Resets a chart's scrollbar zoom to its initial range, as a double‑click on the chart does — for a reset button
+ * outside the canvas. Does nothing for a chart without the plugin (or with it disabled).
+ */
+export function resetScrollbarZoom(chart: Chart): void {
+  const state: PluginState | undefined = (chart as any).__scrollbarZoom;
+  if (!state) return;
+  resetState(chart, state, getOpts(chart));
+}
 
 export default ScrollbarZoomPlugin;
 export { ScrollbarZoomPlugin };

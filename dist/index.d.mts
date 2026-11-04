@@ -1,4 +1,4 @@
-import { Plugin } from 'chart.js';
+import { Plugin, Chart } from 'chart.js';
 
 /** Color values for scrollbar components. */
 interface ScrollbarColors {
@@ -77,5 +77,10 @@ interface ScrollbarZoomOptions {
     }) => void;
 }
 declare const ScrollbarZoomPlugin: Plugin<'line' | 'bar'>;
+/**
+ * Resets a chart's scrollbar zoom to its initial range, as a double‑click on the chart does — for a reset button
+ * outside the canvas. Does nothing for a chart without the plugin (or with it disabled).
+ */
+declare function resetScrollbarZoom(chart: Chart): void;
 
-export { type ScrollbarAxes, type ScrollbarColors, type ScrollbarZoomOptions, ScrollbarZoomPlugin, type XPosition, type YPosition, ScrollbarZoomPlugin as default };
+export { type ScrollbarAxes, type ScrollbarColors, type ScrollbarZoomOptions, ScrollbarZoomPlugin, type XPosition, type YPosition, ScrollbarZoomPlugin as default, resetScrollbarZoom };

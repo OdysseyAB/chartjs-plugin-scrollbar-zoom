@@ -207,7 +207,14 @@ plugins: {
 |---|---|
 | Drag a handle | Zoom in/out from that end |
 | Drag the thumb | Pan the visible range |
-| Double-click chart | Reset to full view |
+| Double-click chart | Reset to the initial range (full view, or `initialYStart`) |
+
+To reset from your own control, e.g. a reset button outside the canvas, call `resetScrollbarZoom(chart)`: it does what a double-click does, `onZoomChange` included.
+
+```ts
+import { resetScrollbarZoom } from '@odysseyab/chartjs-plugin-scrollbar-zoom';
+resetButton.addEventListener('click', () => resetScrollbarZoom(chart));
+```
 
 ## TypeScript
 

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   ScrollbarZoomPlugin,
+  resetScrollbarZoom,
   ScrollbarZoomOptions,
   ScrollbarColors,
 } from '../src/index';
@@ -468,6 +469,28 @@ describe('ScrollbarZoomPlugin', () => {
     expect(() => canvas.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))).not.toThrow();
     expect(oldZoom).not.toHaveBeenCalled();
     expect(newZoom).toHaveBeenCalledTimes(1);
+  });
+
+  it('resetScrollbarZoom resets like a double-click (for a reset button), and ignores a chart without the plugin', async () => {
+    const onZoomChange = vi.fn();
+    canvas = createCanvas();
+    chart = createChart(canvas, { scrollbarZoom: { axes: 'y', lockYMin: true, initialYStart: 0.4, onZoomChange } });
+    await new Promise(r => setTimeout(r, 10));
+    const a = chart.chartArea;
+    const h = a.bottom - a.top;
+    dragY(chart, a.top + h * 0.4, a.top + h * 0.7);
+    const state = (chart as any).__scrollbarZoom;
+    expect(state.yS).toBeCloseTo(0.7, 5);
+
+    resetScrollbarZoom(chart);
+    expect(state.yS).toBeCloseTo(0.4, 5);
+    expect(chart.options.scales!['y']!.max).toBeCloseTo(60, 5);
+    expect(onZoomChange).toHaveBeenLastCalledWith({ xStart: 0, xEnd: 1, yStart: 0.4, yEnd: 1 });
+
+    const cv = createCanvas();
+    const plain = createChart(cv, { scrollbarZoom: { enabled: false } });
+    expect(() => resetScrollbarZoom(plain)).not.toThrow();
+    plain.destroy();
   });
 
   it('initialYStart is clamped so the thumb keeps its minimum size', async () => {

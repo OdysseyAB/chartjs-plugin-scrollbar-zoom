@@ -22,7 +22,8 @@ var ScrollbarZoom = (() => {
   var index_exports = {};
   __export(index_exports, {
     ScrollbarZoomPlugin: () => ScrollbarZoomPlugin,
-    default: () => index_default
+    default: () => index_default,
+    resetScrollbarZoom: () => resetScrollbarZoom
   });
   var DEFAULT_LIGHT_COLORS = {
     track: "rgba(0,0,0,0.08)",
@@ -109,7 +110,6 @@ var ScrollbarZoom = (() => {
       }
     }, 0);
     const canvas = chart.canvas;
-    const axes = opts.axes ?? "both";
     canvas.addEventListener("mousedown", (e) => {
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
@@ -203,33 +203,35 @@ var ScrollbarZoom = (() => {
     };
     document.addEventListener("mousemove", state.docMoveHandler);
     document.addEventListener("mouseup", state.docUpHandler);
-    canvas.addEventListener("dblclick", () => {
-      const yStart = initialYStart(opts);
-      state.xS = 0;
-      state.xE = 1;
-      state.yS = yStart;
-      state.yE = 1;
-      if (axes === "x" || axes === "both") {
-        const labels = chart.data.labels;
-        if (labels?.length) {
-          chart.options.scales["x"].min = 0;
-          chart.options.scales["x"].max = labels.length - 1;
-        }
-      }
-      if (axes === "y" || axes === "both") {
-        if (state.origYMin !== void 0 && state.origYMax !== void 0) {
-          if (yStart > 0) {
-            applyY(chart, state, opts);
-          } else {
-            chart.options.scales["y"].min = state.origYMin;
-            chart.options.scales["y"].max = state.origYMax;
-          }
-        }
-      }
-      opts.onZoomChange?.({ xStart: 0, xEnd: 1, yStart, yEnd: 1 });
-      chart.update("none");
-    }, { signal: state.canvasListeners.signal });
+    canvas.addEventListener("dblclick", () => resetState(chart, state, opts), { signal: state.canvasListeners.signal });
     return state;
+  }
+  function resetState(chart, state, opts) {
+    const axes = opts.axes ?? "both";
+    const yStart = initialYStart(opts);
+    state.xS = 0;
+    state.xE = 1;
+    state.yS = yStart;
+    state.yE = 1;
+    if (axes === "x" || axes === "both") {
+      const labels = chart.data.labels;
+      if (labels?.length) {
+        chart.options.scales["x"].min = 0;
+        chart.options.scales["x"].max = labels.length - 1;
+      }
+    }
+    if (axes === "y" || axes === "both") {
+      if (state.origYMin !== void 0 && state.origYMax !== void 0) {
+        if (yStart > 0) {
+          applyY(chart, state, opts);
+        } else {
+          chart.options.scales["y"].min = state.origYMin;
+          chart.options.scales["y"].max = state.origYMax;
+        }
+      }
+    }
+    opts.onZoomChange?.({ xStart: 0, xEnd: 1, yStart, yEnd: 1 });
+    chart.update("none");
   }
   function xTrackRect(chart, opts) {
     const a = chart.chartArea;
@@ -365,6 +367,11 @@ var ScrollbarZoom = (() => {
       ctx.lineTo(cx + 4, cy + 3);
     }
     ctx.stroke();
+  }
+  function resetScrollbarZoom(chart) {
+    const state = chart.__scrollbarZoom;
+    if (!state) return;
+    resetState(chart, state, getOpts(chart));
   }
   var index_default = ScrollbarZoomPlugin;
   return __toCommonJS(index_exports);
