@@ -215,6 +215,8 @@ function initState(chart: Chart, opts: ScrollbarZoomOptions): PluginState {
 
   // Capture original Y bounds after first render
   setTimeout(() => {
+    // The chart may be gone by now (destroyed right after it was made, e.g. a re-render): updating it would throw.
+    if ((chart as any).__scrollbarZoom !== state || !chart.canvas) return;
     const yScale = chart.scales?.['y'];
     if (yScale) {
       state.origYMin = yScale.min;
@@ -311,12 +313,14 @@ function initState(chart: Chart, opts: ScrollbarZoomOptions): PluginState {
       canvas.style.cursor = state.drag === 'yThumb' ? 'grabbing' : 'ns-resize';
     }
 
-    chart.update('none');
-
+    // Report the range before redrawing, so a chart that draws from it (in its own plugin) draws the new range
+    // in this update rather than the previous one.
     opts.onZoomChange?.({
       xStart: state.xS, xEnd: state.xE,
       yStart: state.yS, yEnd: state.yE,
     });
+
+    chart.update('none');
   };
 
   // --- Mouse up ---
@@ -353,9 +357,8 @@ function initState(chart: Chart, opts: ScrollbarZoomOptions): PluginState {
         }
       }
     }
+    opts.onZoomChange?.({ xStart: 0, xEnd: 1, yStart, yEnd: 1 }); // before the redraw, as in a drag
     chart.update('none');
-
-    opts.onZoomChange?.({ xStart: 0, xEnd: 1, yStart, yEnd: 1 });
   });
 
   return state;

@@ -424,6 +424,37 @@ describe('ScrollbarZoomPlugin', () => {
     expect(onZoomChange).toHaveBeenLastCalledWith(expect.objectContaining({ yStart: 0.4, yEnd: 1 }));
   });
 
+  it('reports the range before it redraws, so a chart drawing from it is never one step behind', async () => {
+    const order: string[] = [];
+    canvas = createCanvas();
+    chart = createChart(canvas, {
+      scrollbarZoom: { axes: 'y', lockYMin: true, initialYStart: 0.4, onZoomChange: () => order.push('zoom') },
+    });
+    await new Promise(r => setTimeout(r, 10));
+    const draw = chart.draw.bind(chart);
+    chart.draw = () => { order.push('draw'); draw(); };
+    const a = chart.chartArea;
+    const h = a.bottom - a.top;
+
+    dragY(chart, a.top + h * 0.4, a.top + h * 0.7);
+    expect(order.slice(-2)).toEqual(['zoom', 'draw']);
+    order.length = 0;
+    chart.canvas.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    expect(order).toEqual(['zoom', 'draw']);
+  });
+
+  it('a chart destroyed before its initialYStart is applied does not throw', () => {
+    vi.useFakeTimers();
+    try {
+      canvas = createCanvas();
+      const c = createChart(canvas, { scrollbarZoom: { axes: 'y', lockYMin: true, initialYStart: 0.4 } });
+      c.destroy();
+      expect(() => vi.runAllTimers()).not.toThrow();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('initialYStart is clamped so the thumb keeps its minimum size', async () => {
     canvas = createCanvas();
     chart = createChart(canvas, { scrollbarZoom: { axes: 'y', lockYMin: true, initialYStart: 2, minThumbFraction: 0.1 } });

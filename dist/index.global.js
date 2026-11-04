@@ -91,6 +91,7 @@ var ScrollbarZoom = (() => {
       docUpHandler: null
     };
     setTimeout(() => {
+      if (chart.__scrollbarZoom !== state || !chart.canvas) return;
       const yScale = chart.scales?.["y"];
       if (yScale) {
         state.origYMin = yScale.min;
@@ -184,13 +185,13 @@ var ScrollbarZoom = (() => {
         applyY(chart, state, opts);
         canvas.style.cursor = state.drag === "yThumb" ? "grabbing" : "ns-resize";
       }
-      chart.update("none");
       opts.onZoomChange?.({
         xStart: state.xS,
         xEnd: state.xE,
         yStart: state.yS,
         yEnd: state.yE
       });
+      chart.update("none");
     };
     state.docUpHandler = () => {
       if (state.drag) {
@@ -223,8 +224,8 @@ var ScrollbarZoom = (() => {
           }
         }
       }
-      chart.update("none");
       opts.onZoomChange?.({ xStart: 0, xEnd: 1, yStart, yEnd: 1 });
+      chart.update("none");
     });
     return state;
   }
